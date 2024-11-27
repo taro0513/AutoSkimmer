@@ -26,7 +26,12 @@ class WebexClient:
     SIDE_BY_SIDE_BUTTON_PATH = r"image/webex/side_by_side_button.png"
     SIDE_BY_SIDE_BUTTON_CLICKED_PATH = r"image/webex/side_by_side_button_clicked.png"
     WAITING_CONTEXT_PATH = r"image/webex/waiting_context.png"
+    READY_ENTER_PATH = r"image/webex/ready_enter.png"
+    HIDE_NO_VIDEO_PEOPLE_CLICK_PATH = r"image/webex/hide_no_video_people_click.png"
+    HIDE_NO_VIDEO_PEOPLE_UNCLICK_PATH = r"image/webex/hide_no_video_people_unclick.png"
+    SETTING_PATH = r"image/webex/setting.png"
     PROCESS_NAME = "CiscoCollabHost.exe"
+    HIDE_NO_VIDEO_PEOPLE_BUTTON_X_OFFSET = 130
 
 
     def __init__(self):
@@ -56,7 +61,7 @@ class WebexClient:
         return self._locate_button(self.JOIN_MEETING_BUTTON_PATH, "join meeting", confidence, 5, 0.1)
 
     def _locate_button(self, button_path: str, button_name: str, confidence: float = 0.8, retry_times: int = 5, reduce_confidence: float = 0.1,
-                       mouse_reset: bool = False) -> Point:
+                       mouse_reset: bool = False, raise_error: bool = True) -> Point:
         print(f"Locating {button_name} button...")
         button = cv2.imread(button_path)
         button_location = None
@@ -82,7 +87,11 @@ class WebexClient:
                 confidence -= reduce_confidence
 
         if button_location is None:
-            raise Exception(f"{button_name} button not found")
+            if raise_error:
+                raise Exception(f"{button_name} button not found")
+            else:
+                print(f"{button_name} button not found")
+                return None
 
         return button_location
 
@@ -113,25 +122,60 @@ class WebexClient:
         return True
 
     def press_layout_button_and_select_layout(self, layout: str):
-        layout_button_location = self._locate_layout_button()
-        pyautogui.click(layout_button_location, clicks=2, interval=1)
+        self.locate_layout_button_and_click(press_enter=True)
         time.sleep(1)
         self._select_layout(layout)
+
+    def locate_layout_button_and_click(self, press_enter: bool = False):
+        layout_button_location = self._locate_layout_button()
+        pyautogui.click(layout_button_location, clicks=1, interval=1)
+        if press_enter:
+            pyautogui.press("enter")
 
     def _locate_layout_button(self):
         return self._locate_button(self.LAYOUT_BUTTON_PATH, "layout", 0.8, 5, 0.1)
 
     def _select_layout(self, layout: str):
         if layout == WebexLayoutEnum.GRID:
-            layout_button_location = self._locate_grid_button()
+            self.locate_grid_button()
         elif layout == WebexLayoutEnum.STACK:
-            layout_button_location = self._locate_stack_button()
+            self.locate_stack_button()
         elif layout == WebexLayoutEnum.SIDE_BY_SIDE:
-            layout_button_location = self._locate_side_by_side_button()
+            self.locate_side_by_side_button()
         else:
             raise ValueError(f"Invalid layout {layout}")
 
+    def locate_grid_button(self):
+        layout_button_location = self._locate_grid_button()
         pyautogui.click(layout_button_location)
+
+    def locate_stack_button(self):
+        layout_button_location = self._locate_stack_button()
+        pyautogui.click(layout_button_location)
+        self.locate_layout_button_and_click()
+        hide_no_video_people_click_location = self._locate_button(self.HIDE_NO_VIDEO_PEOPLE_CLICK_PATH, "hide no video people click", 0.9, 5, 0.0, raise_error=False)
+        if hide_no_video_people_click_location:
+            pyautogui.click(hide_no_video_people_click_location.x + self.HIDE_NO_VIDEO_PEOPLE_BUTTON_X_OFFSET, hide_no_video_people_click_location.y)
+        else:
+            self.cancel_window()
+
+    def locate_side_by_side_button(self, display_no_video_people: bool = False):
+        layout_button_location = self._locate_side_by_side_button()
+        pyautogui.click(layout_button_location)
+        self.locate_layout_button_and_click()
+        if display_no_video_people:
+            hide_no_video_people_unclick_location = self._locate_button(self.HIDE_NO_VIDEO_PEOPLE_UNCLICK_PATH, "hide no video people click", 0.9, 5, 0.0, raise_error=False)
+            if hide_no_video_people_unclick_location:
+                pyautogui.click(hide_no_video_people_unclick_location.x + self.HIDE_NO_VIDEO_PEOPLE_BUTTON_X_OFFSET, hide_no_video_people_unclick_location.y)
+            else:
+                self.cancel_window()
+        else:
+            hide_no_video_people_click_location = self._locate_button(self.HIDE_NO_VIDEO_PEOPLE_CLICK_PATH, "hide no video people click", 0.9, 5, 0.0, raise_error=False)
+            if hide_no_video_people_click_location:
+                pyautogui.click(hide_no_video_people_click_location.x + self.HIDE_NO_VIDEO_PEOPLE_BUTTON_X_OFFSET, hide_no_video_people_click_location.y)
+            else:
+                self.cancel_window()
+
 
     def _locate_grid_button(self):
         try:
@@ -161,15 +205,31 @@ class WebexClient:
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 pass
 
+    def wait_for_ready_enter_window(self):
+        return self._locate_button(self.READY_ENTER_PATH, "ready enter", 0.8, 5, reduce_confidence=0.05, raise_error=False)
+
+    def cancel_window(self):
+        pyautogui.press("esc")
+
+
 
 if __name__ == "__main__":
     webex_client = WebexClient()
+
     webex_client.shutdown()
     webex_client.start()
     time.sleep(5)
     webex_client.press_join_meeting_button()
     webex_client.type_meeting_information('https://meet1403.webex.com/meet/pr26425131474')
-    time.sleep(1)
+
+    while True:
+        if webex_client.wait_for_ready_enter_window():
+            break
+        time.sleep(3)
+        webex_client.cancel_window()
+        webex_client.press_join_meeting_button()
+        webex_client.type_meeting_information("https://meet1403.webex.com/meet/pr26425131474")
+
     webex_client.enter_meeting()
     time.sleep(1)
     webex_client.maximize_window()

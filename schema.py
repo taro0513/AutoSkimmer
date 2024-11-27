@@ -21,12 +21,12 @@ class RoomResponseSchema(RoomCreateSchema):
 class TaskCreateSchema(BaseModel):
     name: str
     username: str
-    email: EmailStr | None = Field(None)
+    email: str | None = Field(None)
     start_time: datetime.datetime
     end_time: datetime.datetime
     repeat: bool
     room: RoomCreateSchema
-    @field_validator('start_time', 'end_time', pre=True)
+    @validator('start_time', 'end_time', pre=True)
     def set_timezone(cls, v):
         if isinstance(v, str):
             dt = datetime.datetime.fromisoformat(v)

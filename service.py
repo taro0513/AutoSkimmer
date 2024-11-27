@@ -3,21 +3,22 @@ from apscheduler.triggers.date import DateTrigger
 import datetime
 from zoneinfo import ZoneInfo
 import time
+from fastapi import HTTPException
 
-from scheme import TaskCreateSchema, TaskResponseSchema, RoomCreateSchema, RoomResponseSchema
+from schema import TaskCreateSchema, TaskResponseSchema, RoomCreateSchema, RoomResponseSchema
 from model import Room, Task, MeetingRoomType, TaskStatusType
-from main import webex_client, zoom_client, scheduler
 from database import engine
-from task.dependency import get_task
+from dependency import db_get_task, db_get_task_by_status, db_get_all_task
+from scheduler import scheduler
+from client import zoom_client, webex_client
 
 
-async def create_task(db: Session, task: TaskCreateSchema,
-                      obs_client, meeting_client) -> TaskResponseSchema:
+def create_task(db: Session, task: TaskCreateSchema) -> TaskResponseSchema:
     room = Room(
-        room_id=task.room_id,
-        room_type=task.room_type,
-        password=task.password,
-        layout=task.layout,
+        room_id=task.room.room_id,
+        room_type=task.room.room_type,
+        password=task.room.password,
+        layout=task.room.layout,
     )
     task = Task(
         name=task.name,
@@ -59,11 +60,68 @@ async def create_task(db: Session, task: TaskCreateSchema,
         updated_at=task.updated_at,
     )
 
+def get_task(db: Session, task_id: int) -> TaskResponseSchema:
+    task = db_get_task(db, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    return TaskResponseSchema(
+        id=task.id,
+        name=task.name,
+        username=task.username,
+        email=task.email,
+        start_time=task.start_time,
+        end_time=task.end_time,
+        repeat=task.repeat,
+        room=RoomResponseSchema(
+            id=task.room.id,
+            room_id=task.room.room_id,
+            room_type=task.room.room_type,
+            layout=task.room.layout,
+            created_at=task.room.created_at,
+            updated_at=task.room.updated_at,
+        ),
+        status=task.status,
+        output_path=task.output_path,
+        created_at=task.created_at,
+        updated_at=task.updated_at,
+    )
+
+def get_all_task(db: Session, status: TaskStatusType | None = None) -> list[TaskResponseSchema]:
+    if status:
+        tasks = db_get_task_by_status(db, status)
+    else:
+        tasks = db_get_all_task(db)
+
+    return [
+        TaskResponseSchema(
+            id=task.id,
+            name=task.name,
+            username=task.username,
+            email=task.email,
+            start_time=task.start_time,
+            end_time=task.end_time,
+            repeat=task.repeat,
+            room=RoomResponseSchema(
+                id=task.room.id,
+                room_id=task.room.room_id,
+                room_type=task.room.room_type,
+                layout=task.room.layout,
+                created_at=task.room.created_at,
+                updated_at=task.room.updated_at,
+            ),
+            status=task.status,
+            output_path=task.output_path,
+            created_at=task.created_at,
+            updated_at=task.updated_at,
+        )
+        for task in tasks
+    ]
 
 def add_recording_job_to_scheduler(
         task: Task, func: callable, run_date: datetime.datetime
 ):
-    print(f"Add recording job to scheduler: {task.id}")
+    print(f"Add recording job to scheduler: {task.id} ({func.__name__})")
     print(f"Run date: {run_date}")
     print(f"Room ID: {task.room.room_id}")
     scheduler.add_job(
@@ -126,7 +184,7 @@ def start_recording(task: Task):
     print(f"Start recording task: {task.name} - {task.id} ...")
 
     with Session(engine) as db:
-        db_task = get_task(db, task.id)
+        db_task = db_get_task(db, task.id)
         db_task.status = TaskStatusType.recording
         db.commit()
         db.refresh(db_task)
@@ -147,7 +205,7 @@ def stop_recording(task: Task):
         stop_zoom_meeting()
 
     with Session(engine) as db:
-        db_task = get_task(db, task.id)
+        db_task = db_get_task(db, task.id)
         db_task.status = TaskStatusType.completed
         db.commit()
         db.refresh(db_task)
