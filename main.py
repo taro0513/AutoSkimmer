@@ -1,16 +1,21 @@
-# This is a sample Python script.
+from fastapi import FastAPI
+from scheduler import scheduler
+from task.route import router as task_router
+from database import get_db
+from webex import WebexClient
+from zoom import ZoomClient
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+app = FastAPI()
+webex_client = WebexClient()
+zoom_client = ZoomClient()
+
+@app.on_event("startup")
+def init_scheduler():
+    scheduler.start()
 
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+@app.on_event("shutdown")
+def shutdown_scheduler():
+    scheduler.shutdown()
 
-
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+app.include_router(task_router)

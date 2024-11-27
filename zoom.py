@@ -6,6 +6,7 @@ import time
 import cv2
 import retry
 from enum import StrEnum
+import psutil
 
 pyautogui.FAILSAFE = False
 
@@ -21,7 +22,7 @@ class ZoomClient:
     SPEAKER_BUTTON_PATH = r"image/zoom/speaker_button.png"
     GALLERY_BUTTON_PATH = r"image/zoom/gallery_button.png"
     MULTIPLE_SPEAKER_BUTTON_PATH = r"image/zoom/multiple_speaker_button.png"
-
+    PROCESS_NAME = "Zoom.exe"
     def __init__(self):
         self.exe_path = Path(r"C:\Program Files\Zoom\bin\Zoom.exe")
     def start(self, latency: int = 0):
@@ -133,6 +134,16 @@ class ZoomClient:
             raise Exception(f"{button_name} button not found")
 
         return button_location
+
+    def shutdown(self):
+        for proc in psutil.process_iter(['pid', 'name']):
+            try:
+                if proc.info['name'] == self.PROCESS_NAME:
+                    print(f"Terminating process: {proc.info['name']} (PID: {proc.info['pid']})")
+                    proc.terminate()
+                    proc.wait()
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass
 
 
 if __name__ == '__main__':
