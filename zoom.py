@@ -8,6 +8,8 @@ import retry
 from enum import StrEnum
 import psutil
 
+from model import MeetingRoomLayoutMode
+
 pyautogui.FAILSAFE = False
 
 class ZoomLayoutEnum(StrEnum):
@@ -46,7 +48,8 @@ class ZoomClient:
         pyautogui.press("enter")
 
     def stop(self):
-        pyautogui.hotkey("alt", "q")
+        with pyautogui.hold('alt'):
+            pyautogui.press('q')
         pyautogui.press("enter")
 
     def press_join_meeting_button(self):
@@ -59,16 +62,19 @@ class ZoomClient:
     def type_meeting_information(self, meeting_id: str, username: str):
         time.sleep(3)
         pyperclip.copy(str(meeting_id))
-        pyautogui.hotkey("ctrl", "v")
+        with pyautogui.hold('ctrl'):
+            pyautogui.press('v')
         time.sleep(1)
         pyautogui.press("tab")
         pyautogui.press("tab")
         time.sleep(1)
-        pyautogui.hotkey("ctrl", "a")
+        with pyautogui.hold('ctrl'):
+            pyautogui.press('a')
         pyautogui.press("backspace")
         time.sleep(1)
         pyperclip.copy(username)
-        pyautogui.hotkey("ctrl", "v")
+        with pyautogui.hold('ctrl'):
+            pyautogui.press('v')
         pyautogui.press("enter")
 
 
@@ -96,11 +102,14 @@ class ZoomClient:
     def type_meeting_password(self, meeting_password: str):
         time.sleep(1)
         pyperclip.copy(meeting_password)
-        pyautogui.hotkey("ctrl", "v")
+        with pyautogui.hold('ctrl'):
+            pyautogui.press('v')
         pyautogui.press("enter")
 
     def maximize_window(self):
-        pyautogui.hotkey("alt", "f")
+        pyautogui.click(pyautogui.position(), clicks=1, interval=2)
+        with pyautogui.hold('alt'):
+            pyautogui.press('f')
 
     def press_layout_button_and_select_layout(self, layout: str):
         self.locate_layout_button_and_click()
@@ -113,36 +122,49 @@ class ZoomClient:
         pyautogui.click(layout_button_location)
 
     def _select_layout(self, layout: str):
-        if layout == ZoomLayoutEnum.SPEAKER:
+        if layout == MeetingRoomLayoutMode.MODE_A:
             self.locate_speaker_button()
-
-        elif layout == ZoomLayoutEnum.GALLERY:
-            self.locate_gallery_button()
-        elif layout == ZoomLayoutEnum.MULTIPLE_SPEAKER:
+        elif layout == MeetingRoomLayoutMode.MODE_B:
+            self.locate_speaker_button(default_mode=True)
+        elif layout == MeetingRoomLayoutMode.MODE_C:
             self.locate_multiple_speaker_button()
+        elif layout == MeetingRoomLayoutMode.MODE_D:
+            self.locate_gallery_button()
         else:
             raise ValueError(f"Invalid layout {layout}")
 
 
-    def locate_speaker_button(self):
+    def locate_speaker_button(self, default_mode: bool = False):
         layout_button_location = self._locate_speaker_button()
         pyautogui.click(layout_button_location)
-        self.locate_layout_button_and_click()
-        hide_self_aware = self._locate_button(
-            self.HIDE_SELF_AWARE_PATH, "hide self aware", 0.9, 5, 0, raise_error=False
-        )
-        if hide_self_aware:
-            pyautogui.click(hide_self_aware)
+
+        if default_mode:
+            self.locate_layout_button_and_click()
+            display_no_video_people = self._locate_button(
+                self.DISPLAY_NO_VIDEO_PEOPLE_PATH, "display no video people", 0.9, 5, 0, raise_error=False
+            )
+            if display_no_video_people:
+                pyautogui.click(display_no_video_people)
+            else:
+                self.cancel_window()
+
         else:
-            self.cancel_window()
-        self.locate_layout_button_and_click()
-        hide_no_video_people = self._locate_button(
-            self.HIDE_NO_VIDEO_PEOPLE_PATH, "hide no video people", 0.9, 5, 0, raise_error=False
-        )
-        if hide_no_video_people:
-            pyautogui.click(hide_no_video_people)
-        else:
-            self.cancel_window()
+            self.locate_layout_button_and_click()
+            hide_self_aware = self._locate_button(
+                self.HIDE_SELF_AWARE_PATH, "hide self aware", 0.9, 5, 0, raise_error=False
+            )
+            if hide_self_aware:
+                pyautogui.click(hide_self_aware)
+            else:
+                self.cancel_window()
+            self.locate_layout_button_and_click()
+            hide_no_video_people = self._locate_button(
+                self.HIDE_NO_VIDEO_PEOPLE_PATH, "hide no video people", 0.9, 5, 0, raise_error=False
+            )
+            if hide_no_video_people:
+                pyautogui.click(hide_no_video_people)
+            else:
+                self.cancel_window()
 
     def locate_gallery_button(self):
         layout_button_location = self._locate_gallery_button()
@@ -238,43 +260,43 @@ class ZoomClient:
         return self._locate_button(self.ENTER_PASSWORD_WINDOW_PATH, "enter password window", 0.8, 5, 0.05, raise_error=False)
 
     def open_chat_room(self):
-        pyautogui.hotkey("alt", "h")
+        with pyautogui.hold('alt'):
+            pyautogui.press('h')
 
     def move_chat_room_to_left_button(self, move_to: int = 300):
-        pyautogui.hotkey("alt", "shift", "h")
+        with pyautogui.hold('alt'):
+            with pyautogui.hold('shift'):
+                pyautogui.press('h')
         chat_room_position = self._locate_button(self.CHAT_ROOM_PATH, "chat room", 0.8, 5, 0.05, raise_error=False)
         pyautogui.moveTo(chat_room_position)
         pyautogui.dragTo(move_to, chat_room_position.y, duration=0.5)
 
 if __name__ == '__main__':
     zoom = ZoomClient()
-    zoom.press_layout_button_and_select_layout(
-        ZoomLayoutEnum.SPEAKER
-    )
-    # zoom.shutdown()
-    # time.sleep(5)
-    # zoom.start()
-    # time.sleep(5)
-    # zoom.press_join_meeting_button()
-    #
-    # zoom.type_meeting_information("https://zoom.us/j/94345039088?pwd=deUSpmasIx9LVcze2gz5moVn7SEzlx.1", "username")
-    #
-    # while True:
-    #     zoom.reset_mouse_position()
-    #     if zoom.wait_for_enter_password_window():
-    #         break
-    #     time.sleep(3)
-    #     zoom.cancel_window()
-    #     zoom.press_join_meeting_button()
-    #     zoom.type_meeting_information("https://zoom.us/j/94345039088?pwd=deUSpmasIx9LVcze2gz5moVn7SEzlx.1", "username")
-    #
-    # zoom.type_meeting_password("vSU0h4")
-    # time.sleep(3)
-    # zoom.maximize_window()
-    # zoom.press_layout_button_and_select_layout(ZoomLayoutEnum.GALLERY)
-    # time.sleep(2)
-    # zoom.open_chat_room()
-    # zoom.move_chat_room_to_left_button()
-    #
-    # time.sleep(10)
-    # zoom.stop()
+    zoom.shutdown()
+    time.sleep(5)
+    zoom.start()
+    time.sleep(5)
+    zoom.press_join_meeting_button()
+
+    zoom.type_meeting_information("https://zoom.us/j/94345039088?pwd=deUSpmasIx9LVcze2gz5moVn7SEzlx.1", "username")
+
+    while True:
+        zoom.reset_mouse_position()
+        if zoom.wait_for_enter_password_window():
+            break
+        time.sleep(3)
+        zoom.cancel_window()
+        zoom.press_join_meeting_button()
+        zoom.type_meeting_information("https://zoom.us/j/94345039088?pwd=deUSpmasIx9LVcze2gz5moVn7SEzlx.1", "username")
+
+    zoom.type_meeting_password("vSU0h4")
+    time.sleep(5)
+    zoom.maximize_window()
+    zoom.press_layout_button_and_select_layout(ZoomLayoutEnum.GALLERY)
+    time.sleep(2)
+    zoom.open_chat_room()
+    zoom.move_chat_room_to_left_button()
+
+    time.sleep(10)
+    zoom.stop()

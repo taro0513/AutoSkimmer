@@ -2,14 +2,14 @@ import datetime
 from zoneinfo import ZoneInfo
 from pydantic import BaseModel, EmailStr, Field, validator, field_validator
 
-from model import MeetingRoomType, TaskStatusType, MeetingRoomLayout
+from model import MeetingRoomType, TaskStatusType, MeetingRoomLayout, MeetingRoomLayoutMode
 
 
 class RoomCreateSchema(BaseModel):
     room_id: str
     room_type: MeetingRoomType
     password: str | None = Field(None)
-    layout: MeetingRoomLayout | None = Field(None)
+    layout: MeetingRoomLayoutMode | None = Field(None)
 
 
 class RoomResponseSchema(RoomCreateSchema):

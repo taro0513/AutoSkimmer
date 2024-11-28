@@ -33,6 +33,12 @@ class MeetingRoomLayout(StrEnum):
     GALLERY = "gallery"
     MULTIPLE_SPEAKER = "multiple_speaker"
 
+class MeetingRoomLayoutMode(StrEnum):
+    MODE_A = "mode_a"
+    MODE_B = "mode_b"
+    MODE_C = "mode_c"
+    MODE_D = "mode_d"
+
 
 class Task(Base):
     __tablename__ = "task"
@@ -54,6 +60,6 @@ class Room(Base):
     room_id: Mapped[str] = mapped_column(String(50), nullable=False)
     room_type: Mapped[MeetingRoomType] = mapped_column(String, nullable=False)
     password: Mapped[str] = mapped_column(String(100), nullable=True)
-    layout: Mapped[MeetingRoomLayout] = mapped_column(String, nullable=True)
+    layout: Mapped[MeetingRoomLayoutMode] = mapped_column(String, nullable=True)
     task_id: Mapped[int] = mapped_column(ForeignKey("task.id"))
     task: Mapped["Task"] = relationship("Task", back_populates="room")

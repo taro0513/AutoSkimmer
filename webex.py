@@ -8,6 +8,8 @@ import retry
 from enum import StrEnum
 import psutil
 
+from model import MeetingRoomLayoutMode
+
 pyautogui.FAILSAFE = False
 
 class WebexLayoutEnum(StrEnum):
@@ -30,6 +32,8 @@ class WebexClient:
     HIDE_NO_VIDEO_PEOPLE_CLICK_PATH = r"image/webex/hide_no_video_people_click.png"
     HIDE_NO_VIDEO_PEOPLE_UNCLICK_PATH = r"image/webex/hide_no_video_people_unclick.png"
     SETTING_PATH = r"image/webex/setting.png"
+    CHAT_ROOM_PATH = r"image/webex/chat_room.png"
+    CHAT_ROOM_JUMPER_PATH = r"image/webex/chat_room_jumper.png"
     PROCESS_NAME = "CiscoCollabHost.exe"
     HIDE_NO_VIDEO_PEOPLE_BUTTON_X_OFFSET = 130
 
@@ -50,7 +54,8 @@ class WebexClient:
         pyautogui.press("enter")
 
     def stop(self):
-        pyautogui.hotkey("cltr", "l")
+        with pyautogui.hold('ctrl'):
+            pyautogui.press('l')
         pyautogui.press("enter")
 
     def press_join_meeting_button(self):
@@ -98,14 +103,16 @@ class WebexClient:
     def type_meeting_information(self, meeting_id: str):
         time.sleep(1)
         pyperclip.copy(meeting_id)
-        pyautogui.hotkey("ctrl", "v")
+        with pyautogui.hold('ctrl'):
+            pyautogui.press('v')
         pyautogui.press("enter")
 
     def enter_meeting(self):
         pyautogui.press("enter")
 
     def maximize_window(self):
-        pyautogui.hotkey("alt", "enter")
+        with pyautogui.hold('alt'):
+            pyautogui.press('enter')
 
     def wait_for_enter_meeting(self):
         waiting_context = cv2.imread(self.WAITING_CONTEXT_PATH)
@@ -122,13 +129,13 @@ class WebexClient:
         return True
 
     def press_layout_button_and_select_layout(self, layout: str):
-        self.locate_layout_button_and_click(press_enter=True)
+        self.locate_layout_button_and_click(press_enter=False)
         time.sleep(1)
         self._select_layout(layout)
 
     def locate_layout_button_and_click(self, press_enter: bool = False):
         layout_button_location = self._locate_layout_button()
-        pyautogui.click(layout_button_location, clicks=1, interval=1)
+        pyautogui.click(layout_button_location, clicks=1, interval=3)
         if press_enter:
             pyautogui.press("enter")
 
@@ -136,12 +143,14 @@ class WebexClient:
         return self._locate_button(self.LAYOUT_BUTTON_PATH, "layout", 0.8, 5, 0.1)
 
     def _select_layout(self, layout: str):
-        if layout == WebexLayoutEnum.GRID:
-            self.locate_grid_button()
-        elif layout == WebexLayoutEnum.STACK:
+        if layout == MeetingRoomLayoutMode.MODE_A:
+            self.locate_side_by_side_button(display_no_video_people=False)
+        elif layout == MeetingRoomLayoutMode.MODE_B:
             self.locate_stack_button()
-        elif layout == WebexLayoutEnum.SIDE_BY_SIDE:
-            self.locate_side_by_side_button()
+        elif layout == MeetingRoomLayoutMode.MODE_C:
+            self.locate_side_by_side_button(display_no_video_people=True)
+        elif layout == MeetingRoomLayoutMode.MODE_D:
+            self.locate_grid_button()
         else:
             raise ValueError(f"Invalid layout {layout}")
 
@@ -211,6 +220,19 @@ class WebexClient:
     def cancel_window(self):
         pyautogui.press("esc")
 
+    def open_chat_room(self):
+        chat_room_location = self._locate_button(self.CHAT_ROOM_PATH, "chat room jumper", 0.8, 5, 0.0, raise_error=False)
+        if chat_room_location:
+            pyautogui.click(chat_room_location)
+        else:
+            self.cancel_window()
+
+        chat_room_jumper_location = self._locate_button(self.CHAT_ROOM_JUMPER_PATH, "chat room jumper", 0.8, 5, 0.0, raise_error=False)
+        if chat_room_jumper_location:
+            pyautogui.click(chat_room_jumper_location)
+        else:
+            self.cancel_window()
+
 
 
 if __name__ == "__main__":
@@ -225,7 +247,7 @@ if __name__ == "__main__":
     while True:
         if webex_client.wait_for_ready_enter_window():
             break
-        time.sleep(3)
+        time.sleep(10)
         webex_client.cancel_window()
         webex_client.press_join_meeting_button()
         webex_client.type_meeting_information("https://meet1403.webex.com/meet/pr26425131474")
@@ -234,7 +256,11 @@ if __name__ == "__main__":
     time.sleep(1)
     webex_client.maximize_window()
     webex_client.wait_for_enter_meeting()
-    webex_client.press_layout_button_and_select_layout(WebexLayoutEnum.SIDE_BY_SIDE)
+    time.sleep(5)
+    webex_client.press_layout_button_and_select_layout(MeetingRoomLayoutMode.MODE_A)
+    time.sleep(5)
+    webex_client.open_chat_room()
+
     webex_client.stop()
     time.sleep(5)
     webex_client.shutdown()
