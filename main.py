@@ -8,8 +8,10 @@ from scheduler import scheduler
 from database import get_db
 
 from schema import TaskCreateSchema, TaskResponseSchema
-from service import create_task, get_task, get_all_task
+from service import create_task, get_task, get_all_task, delete_task
 from model import TaskStatusType
+
+from client import obs_client
 
 app = FastAPI()
 
@@ -45,10 +47,20 @@ async def get_task_endpoint(
     return get_task(db, task_id)
 
 @app.get(
-    path='/task'
+    path='/task',
+    response_model=list[TaskResponseSchema]
 )
-async def get_all_tasks(
+async def get_all_tasks_endpoint(
     status: TaskStatusType | None = Query(None),
     db: Session = Depends(get_db)
 ):
     return get_all_task(db, status)
+
+@app.delete(
+    path='/task/{task_id}',
+)
+async def delete_task_endpoint(
+        task_id: int,
+        db: Session = Depends(get_db)
+):
+    return delete_task(db, task_id)
