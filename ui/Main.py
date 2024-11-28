@@ -3,12 +3,15 @@ import subprocess
 import pathlib
 import streamlit as st
 import requests
+import datetime
+
+API_URL = "http://localhost:8000"
 
 from schema import TaskResponseSchema, TaskStatusType
 def api_call_get_tasks(
         status: TaskStatusType = TaskStatusType.upcoming):
-    # return requests.get(f"http://localhost:8000/task?status={status.value}").json()
-    return []
+    return requests.get(f"{API_URL}/task?status={status.value}").json()
+    # return []
 
 @st.cache_data
 def api_call_get_complete_tasks(
@@ -31,6 +34,8 @@ def api_call_get_upcoming_tasks(
 def api_call_create_task(task: dict) -> requests.Response:
     return requests.post("http://localhost:8000/task", json=task)
 
+def api_call_delete_task(task_id: int) -> requests.Response:
+    return requests.delete(f"http://localhost:8000/task/{task_id}")
 
 streamlit.set_page_config(
     page_title="Meeting Recorder",
@@ -57,20 +62,24 @@ def create_new_task():
     room_id = streamlit.text_input("Meeting Room ID")
     room_type = streamlit.selectbox("Meeting Room Type", ["Webex", "Zoom"])
     room_password = streamlit.text_input("Meeting Room Password")
-    layout = streamlit.selectbox("Layout", ["Grid(Speaker)", "Stack(Gallery)", "SideBySide(MultipleSpeaker)"])
+    layout = streamlit.selectbox("Layout", ["mode_a", "mode_b", "mode_c", "mode_d"])
 
     if streamlit.button("Apply"):
+        start_time = f"{date} {start_time}"
+        end_time = f"{date} {end_time}"
         response = requests.post("http://localhost:8000/task", json={
-            "name": title,
-            "room_type": room_type.lower(),
-            "room_id": room_id,
+            "name": name,
+            "username": username,
+            "email": email,
             "start_time": start_time,
             "end_time": end_time,
-            "username": username,
-            "password": password,
-            "email": email,
             "repeat": repeat,
-            "layout": layout
+            "room": {
+                "room_id": room_id,
+                "room_type": room_type,
+                "password": room_password,
+                "layout": layout
+            }
         })
 
         if response.status_code != 200:
@@ -84,35 +93,39 @@ def create_new_task():
 
 @streamlit.dialog("Task Details")
 def view_task_details(task: TaskResponseSchema):
-    streamlit.text_input("Task Title*", value=task.name, disabled=True)
-    streamlit.selectbox("Meeting Room Type*", [
-        "Webex" if task.room.room_type == "webex" else "Zoom"
-    ], disabled=True)
-    streamlit.text_input("Meeting Room ID*", value=task.room.room_id, disabled=True)
+    streamlit.text_input("Task Name*", value=task.name, disabled=True)
+    streamlit.text_input("User Mame*", value=task.username, disabled=True)
+    streamlit.text_input("Email", value=task.email, disabled=True)
     streamlit.date_input("Date*", value=task.start_time.date(), disabled=True)
     streamlit.time_input("Start Time*", value=task.start_time.time(), disabled=True)
     streamlit.time_input("End Time*", value=task.end_time.time(), disabled=True)
-    streamlit.text_input("User Mame*", value=task.username, disabled=True)
-    streamlit.text_input("Meeting Room Password", value="******", disabled=True)
-    streamlit.text_input("Email", value=task.email, disabled=True)
     streamlit.checkbox("Repeat", value=task.repeat, disabled=True)
+    streamlit.text_input("Meeting Room ID*", value=task.room.room_id, disabled=True)
+    streamlit.selectbox("Meeting Room Type", ["Webex", "Zoom"],
+                                    index=0 if task.room.room_type == "Webex" else 1, disabled=True)
+    streamlit.text_input("Meeting Room Password", value="******", disabled=True)
+    streamlit.selectbox("Layout", ["mode_a", "mode_b", "mode_c", "mode_d"], index=
+                        ["mode_a", "mode_b", "mode_c", "mode_d"].index(task.room.layout), disabled=True)
+
 
 
 @streamlit.dialog("Edit task details")
 def edit_task_details(task: TaskResponseSchema):
-    title = streamlit.text_input("Task Title*", value=task.name, disabled=True)
-    room_type = streamlit.selectbox("Meeting Room Type*", ["Webex", "Zoom"],
-                                    index=0 if task.room.room_type == "webex" else 1)
-    room_id = streamlit.text_input("Meeting Room ID*", value=task.room.room_id)
-    date = streamlit.date_input("Date*", value=task.start_time.date())
-    start_time = streamlit.time_input("Start Time*", value=task.start_time.time())
-    end_time = streamlit.time_input("End Time*", value=task.end_time.time())
-    username = streamlit.text_input("User Mame*", value=task.username)
-    password = streamlit.text_input("Meeting Room Password", value="******")
-    if password == "******":
-        password = None
+    name = streamlit.text_input("Task Name*", value=task.name, disabled=True)
+    username = streamlit.text_input("User Name", value=task.username)
     email = streamlit.text_input("Email", value=task.email)
+    date = streamlit.date_input("Date*", value=task.start_time.date())
+    start_time = streamlit.time_input("Start Time*", value=task.start_time.time(), disabled=True)
+    end_time = streamlit.time_input("End Time*", value=task.end_time.time(), disabled=True)
     repeat = streamlit.checkbox("Repeat", value=task.repeat)
+    room_id = streamlit.text_input("Meeting Room ID", value=task.room.room_id)
+    room_type = streamlit.selectbox("Meeting Room Type", ["Webex", "Zoom"],
+                                    index=0 if task.room.room_type == "Webex" else 1)
+    room_password = streamlit.text_input("Meeting Room Password", value="******")
+    layout = streamlit.selectbox("Layout", ["mode_a", "mode_b", "mode_c", "mode_d"])
+    if room_password == "******":
+        room_password = None
+
     if streamlit.button("Apply"):
         streamlit.success("Task updated successfully")
         streamlit.rerun()
@@ -166,7 +179,7 @@ def upgrade_plan():
 
 
 if streamlit.button("Add Task", help="Create a new recording task"):
-    create_new_section()
+    create_new_task()
 
 streamlit.header("Currently Recording")
 
@@ -201,7 +214,11 @@ upcoming_tasks = api_call_get_upcoming_tasks()
 upcoming_tasks = [TaskResponseSchema(**task) for task in upcoming_tasks]
 if upcoming_tasks:
     for task in upcoming_tasks:
-        expander = streamlit.expander(f"🟡 {task.name}")
+        now_time = datetime.datetime.now(datetime.UTC)
+        if task.start_time < now_time:
+            expander = streamlit.expander(f"🟡 {task.name} (此任務設定時間已過)")
+        else:
+            expander = streamlit.expander(f"🟡 {task.name}")
         expander.text(f"Start Record At: {task.start_time}")
         expander.text(f"Possibly End Record At: {task.end_time}")
 
@@ -209,13 +226,14 @@ if upcoming_tasks:
         with col1:
             if streamlit.button("Start Record Now", key=f"_button_recording_upcoming_record_now_{task.id}"):
                 upgrade_plan()
+
         with col2:
-            if streamlit.button("Edit", key=f"_button_recording_upcoming_edit_{task.id}"):
-                edit_task_details(task)
+            if streamlit.button("View", key=f"_button_recording_upcoming_view_{task.id}"):
+                view_task_details(task)
 
         with col3:
             if streamlit.button("Delete", key=f"_button_recording_upcoming_delete_{task.id}"):
-                requests.delete(f"http://localhost:8000/task/{task.id}")
+                api_call_delete_task(task.id)
                 streamlit.cache_data.clear()
                 streamlit.rerun()
 else:
@@ -237,7 +255,10 @@ if completed_tasks:
                 view_task_details(task)
         with col2:
             if streamlit.button("Open Video in Explorer", key=f"_button_recording_completed_edit_{task.id}"):
-                open_file_in_explorer(task.output_path)
+                try:
+                    open_file_in_explorer(task.output_path)
+                except Exception as e:
+                    streamlit.error(e)
 
         with col3:
             if streamlit.button("Upload Video to Drive", key=f"_button_recording_completed_delete_{task.id}"):

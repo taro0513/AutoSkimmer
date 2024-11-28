@@ -4,8 +4,8 @@ from pydantic import BaseModel, EmailStr, Field, validator, field_validator
 from enum import StrEnum
 
 class MeetingRoomType(StrEnum):
-    WEBEX = "webex"
-    ZOOM = "zoom"
+    WEBEX = "Webex"
+    ZOOM = "Zoom"
 
 
 class TaskStatusType(StrEnum):
@@ -22,12 +22,17 @@ class MeetingRoomLayout(StrEnum):
     GALLERY = "gallery"
     MULTIPLE_SPEAKER = "multiple_speaker"
 
+class MeetingRoomLayoutMode(StrEnum):
+    MODE_A = "mode_a"
+    MODE_B = "mode_b"
+    MODE_C = "mode_c"
+    MODE_D = "mode_d"
 
 class RoomCreateSchema(BaseModel):
     room_id: str
     room_type: MeetingRoomType
     password: str | None = Field(None)
-    layout: MeetingRoomLayout | None = Field(None)
+    layout: MeetingRoomLayoutMode | None = Field(None)
 
 
 class RoomResponseSchema(RoomCreateSchema):
@@ -39,7 +44,7 @@ class RoomResponseSchema(RoomCreateSchema):
 class TaskCreateSchema(BaseModel):
     name: str
     username: str
-    email: EmailStr | None = Field(None)
+    email: str | None = Field(None)
     start_time: datetime.datetime
     end_time: datetime.datetime
     repeat: bool
