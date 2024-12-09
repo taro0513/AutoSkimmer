@@ -104,7 +104,6 @@ def view_task_details(task: TaskResponseSchema):
     streamlit.date_input("Date*", value=task.start_time.date(), disabled=True)
     streamlit.time_input("Start Time*", value=task.start_time.time(), disabled=True)
     streamlit.time_input("End Time*", value=task.end_time.time(), disabled=True)
-    streamlit.checkbox("Repeat", value=task.repeat, disabled=True)
     streamlit.text_input("Meeting Room ID*", value=task.room.room_id, disabled=True)
     streamlit.selectbox("Meeting Room Type", ["Webex", "Zoom"],
                                     index=0 if task.room.room_type == "Webex" else 1, disabled=True)
@@ -122,7 +121,6 @@ def edit_task_details(task: TaskResponseSchema):
     date = streamlit.date_input("Date*", value=task.start_time.date())
     start_time = streamlit.time_input("Start Time*", value=task.start_time.time())
     end_time = streamlit.time_input("End Time*", value=task.end_time.time())
-    repeat = streamlit.checkbox("Repeat", value=task.repeat)
     room_id = streamlit.text_input("Meeting Room ID*", value=task.room.room_id)
     room_type = streamlit.selectbox("Meeting Room Type", ["Webex", "Zoom"], 
                                     index=0 if task.room.room_type == "Webex" else 1)
@@ -140,7 +138,9 @@ def edit_task_details(task: TaskResponseSchema):
             "email": email,
             "start_time": start_time,
             "end_time": end_time,
-            "repeat": repeat,
+            "repeat": False,
+            "repeat_interval_days": 0,
+            "repeat_until": "2004-05-03 17:30:08+08:00",
             "room": {
                 "room_id": room_id,
                 "room_type": room_type,
@@ -166,7 +166,6 @@ def duplicate_task(task: TaskResponseSchema):
     date = streamlit.date_input("Date*", value=task.start_time.date())
     start_time = streamlit.time_input("Start Time*", value=task.start_time.time())
     end_time = streamlit.time_input("End Time*", value=task.end_time.time())
-    repeat = streamlit.checkbox("Repeat", value=task.repeat)
     room_id = streamlit.text_input("Meeting Room ID*", value=task.room.room_id)
     room_type = streamlit.selectbox("Meeting Room Type", ["Webex", "Zoom"], 
                                     index=0 if task.room.room_type == "Webex" else 1)
@@ -183,7 +182,9 @@ def duplicate_task(task: TaskResponseSchema):
             "email": email,
             "start_time": start_time,
             "end_time": end_time,
-            "repeat": repeat,
+            "repeat": False,
+            "repeat_interval_days": 0,
+            "repeat_until": "2004-05-03 17:30:08+08:00",
             "room": {
                 "room_id": room_id,
                 "room_type": room_type,
@@ -263,7 +264,7 @@ if upcoming_tasks:
                 upgrade_plan()
 
         with col2:
-            if streamlit.button("View", key=f"_button_recording_upcoming_edit_{task.id}"):
+            if streamlit.button("View/Edit", key=f"_button_recording_upcoming_edit_{task.id}"):
                 edit_task_details(task)
 
         with col3:

@@ -23,7 +23,6 @@ def minimize_all_windows():
 def create_task(db: Session, task: TaskCreateSchema) -> TaskResponseSchema:
 
 
-
     if task.repeat:
         assert task.repeat_interval_days > 0
         repeating_time = task.start_time

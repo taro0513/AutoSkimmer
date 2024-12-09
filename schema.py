@@ -32,10 +32,10 @@ class TaskCreateSchema(BaseModel):
     def set_timezone(cls, v):
         if isinstance(v, str):
             dt = datetime.datetime.fromisoformat(v)
-        elif isinstance(v, datetime):
+        elif isinstance(v, datetime.datetime):
             dt = v
         else:
-            raise TypeError('start_time must be a datetime object or ISO format string')
+            raise TypeError('start_time must be a datetime object or ISO format string, got ' ,type(v))
 
         if dt.tzinfo is None:
             return dt.replace(tzinfo=ZoneInfo("Asia/Taipei"))
