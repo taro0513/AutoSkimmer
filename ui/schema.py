@@ -48,6 +48,8 @@ class TaskCreateSchema(BaseModel):
     start_time: datetime.datetime
     end_time: datetime.datetime
     repeat: bool
+    repeat_interval_days: int
+    repeat_until: datetime.datetime
     room: RoomCreateSchema
     @validator('start_time', 'end_time', pre=True)
     def set_timezone(cls, v):

@@ -21,29 +21,77 @@ def minimize_all_windows():
 
 
 def create_task(db: Session, task: TaskCreateSchema) -> TaskResponseSchema:
-    room = Room(
+
+
+
+    if task.repeat:
+        assert task.repeat_interval_days > 0
+        repeating_time = task.start_time
+        repeat_until = task.repeat_until
+        end_time = task.end_time
+        duration = end_time - repeating_time
+
+        i=0
+        while repeating_time <= repeat_until:
+            i+=1
+            
+            task.start_time = repeating_time
+            task.end_time = (repeating_time + duration)
+            room = Room(
+                room_id=task.room.room_id,
+                room_type=task.room.room_type,
+                password=task.room.password,
+                layout=task.room.layout,
+            )
+            task_model = Task(
+                name=task.name + task.start_time.strftime('-%Y-%m-%d'),
+                username=task.username,
+                email=task.email,
+                start_time=task.start_time,
+                end_time=task.end_time,
+                repeat=task.repeat,
+                repeat_interval_days=task.repeat_interval_days,
+                repeat_until=task.repeat_until,
+                room=room,
+            )
+            
+            db.add(task_model)
+            db.commit()
+            db.refresh(task_model)
+            db.refresh(room)
+            add_recording_job_to_scheduler(task_model, start_recording, task_model.start_time, "start_recording")
+            add_recording_job_to_scheduler(task_model, stop_recording, task_model.end_time, "stop_recording")
+            
+            repeating_time = repeating_time + datetime.timedelta(days=int(task.repeat_interval_days))
+            print(repeating_time)
+        task = task_model
+    else:
+        room = Room(
         room_id=task.room.room_id,
         room_type=task.room.room_type,
         password=task.room.password,
         layout=task.room.layout,
     )
-    task = Task(
-        name=task.name,
-        username=task.username,
-        email=task.email,
-        start_time=task.start_time,
-        end_time=task.end_time,
-        repeat=task.repeat,
-        room=room,
-    )
+        task = Task(
+            name=task.name,
+            username=task.username,
+            email=task.email,
+            start_time=task.start_time,
+            end_time=task.end_time,
+            repeat=task.repeat,
+            repeat_interval_days=task.repeat_interval_days,
+            repeat_until=task.repeat_until,
+            room=room,
+        )
 
-    db.add(task)
-    db.commit()
-    db.refresh(task)
-    db.refresh(room)
+        db.add(task)
+        db.commit()
+        db.refresh(task)
+        db.refresh(room)
 
-    add_recording_job_to_scheduler(task, start_recording, task.start_time, "start_recording")
-    add_recording_job_to_scheduler(task, stop_recording, task.end_time, "stop_recording")
+        add_recording_job_to_scheduler(task, start_recording, task.start_time, "start_recording")
+        add_recording_job_to_scheduler(task, stop_recording, task.end_time, "stop_recording")
+
 
     return TaskResponseSchema(
         id=task.id,
@@ -109,6 +157,8 @@ def get_all_task(db: Session, status: TaskStatusType | None = None) -> list[Task
             start_time=task.start_time,
             end_time=task.end_time,
             repeat=task.repeat,
+            repeat_interval_days=task.repeat_interval_days,
+            repeat_until=task.repeat_until,
             room=RoomResponseSchema(
                 id=task.room.id,
                 room_id=task.room.room_id,

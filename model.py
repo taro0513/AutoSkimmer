@@ -1,7 +1,7 @@
 import datetime
 from enum import StrEnum
 
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import ForeignKey, String, Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship, DeclarativeBase
 from sqlalchemy.types import Boolean
 from sqlalchemy.sql import func
@@ -49,6 +49,8 @@ class Task(Base):
     start_time: Mapped[datetime.datetime] = mapped_column(String(50), nullable=False)
     end_time: Mapped[datetime.datetime] = mapped_column(String(50), nullable=False)
     repeat: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    repeat_interval_days : Mapped[int] = mapped_column(Numeric, nullable=False)
+    repeat_until: Mapped[datetime.datetime] = mapped_column(String(50), nullable=True)
     status: Mapped[TaskStatusType] = mapped_column(String, nullable=False, default=TaskStatusType.upcoming)
     output_path: Mapped[str] = mapped_column(String(100), nullable=True)
     room: Mapped["Room"] = relationship("Room", back_populates="task")

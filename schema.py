@@ -25,8 +25,10 @@ class TaskCreateSchema(BaseModel):
     start_time: datetime.datetime
     end_time: datetime.datetime
     repeat: bool
+    repeat_interval_days: int | None = Field(None)
+    repeat_until: datetime.datetime | None = Field(None)
     room: RoomCreateSchema
-    @validator('start_time', 'end_time', pre=True)
+    @validator('start_time', 'end_time','repeat_until', pre=True)
     def set_timezone(cls, v):
         if isinstance(v, str):
             dt = datetime.datetime.fromisoformat(v)

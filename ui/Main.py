@@ -59,12 +59,15 @@ def create_new_task():
     start_time = streamlit.time_input("Start Time")
     end_time = streamlit.time_input("End Time")
     repeat = streamlit.checkbox("Repeat")
+    repeat_interval_days = streamlit.number_input("Repeat Every N Days",1,100)
+    repeat_until = streamlit.date_input("Repeat Until")
     room_id = streamlit.text_input("Meeting Room ID")
     room_type = streamlit.selectbox("Meeting Room Type", ["Webex", "Zoom"])
     room_password = streamlit.text_input("Meeting Room Password")
     layout = streamlit.selectbox("Layout", ["mode_a", "mode_b", "mode_c", "mode_d"])
 
     if streamlit.button("Apply"):
+        repeat_until = f"{repeat_until} {start_time}"
         start_time = f"{date} {start_time}"
         end_time = f"{date} {end_time}"
         response = requests.post("http://localhost:8000/task", json={
@@ -74,6 +77,8 @@ def create_new_task():
             "start_time": start_time,
             "end_time": end_time,
             "repeat": repeat,
+            "repeat_interval_days": repeat_interval_days,
+            "repeat_until": repeat_until,
             "room": {
                 "room_id": room_id,
                 "room_type": room_type,
