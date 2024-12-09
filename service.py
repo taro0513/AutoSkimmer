@@ -3,6 +3,7 @@ from apscheduler.triggers.date import DateTrigger
 import datetime
 from zoneinfo import ZoneInfo
 import time
+import pyautogui
 from fastapi import HTTPException
 
 from schema import TaskCreateSchema, TaskResponseSchema, RoomCreateSchema, RoomResponseSchema
@@ -12,7 +13,11 @@ from dependency import db_get_task, db_get_task_by_status, db_get_all_task
 from scheduler import scheduler
 from client import zoom_client, webex_client, obs_client
 from watermark import WatermarkApp
+from custom_logger import logger
 
+def minimize_all_windows():
+    with pyautogui.hold("win"):
+        pyautogui.press("m")
 
 
 def create_task(db: Session, task: TaskCreateSchema) -> TaskResponseSchema:
@@ -137,9 +142,9 @@ def delete_task(db: Session, task_id: int):
 def add_recording_job_to_scheduler(
         task: Task, func: callable, run_date: datetime.datetime, job_id_suffix: str = None
 ):
-    print(f"Add recording job to scheduler: {task.id} ({func.__name__})")
-    print(f"Run date: {run_date}")
-    print(f"Room ID: {task.room.room_id}")
+    logger.debug(f"Add recording job to scheduler: {task.id} ({func.__name__})")
+    logger.debug(f"Run date: {run_date}")
+    logger.debug(f"Room ID: {task.room.room_id}")
     scheduler.add_job(
         func=func,
         trigger=DateTrigger(run_date, timezone=ZoneInfo("Asia/Taipei")),
@@ -148,7 +153,7 @@ def add_recording_job_to_scheduler(
     )
 
 def remove_recording_job_from_scheduler(job_id: str):
-    print(f"Remove recording job from scheduler: {job_id}")
+    logger.debug(f"Remove recording job from scheduler: {job_id}")
     scheduler.remove_job(job_id)
 
 def wait_for(seconds: int):
@@ -156,97 +161,123 @@ def wait_for(seconds: int):
 
 
 def start_zoom_meeting(task: Task):
-    wm = WatermarkApp("Zoom 錄影任務即將開始，請勿觸碰電腦。")
+    wm = WatermarkApp("錄影任務即將開始，請勿觸碰電腦。")
     wm.start()
-
+    
     wait_for(10)
+
+    minimize_all_windows()
+
+    obs_client.shutdown()
+    wait_for(3)
     obs_client.start()
     wait_for(10)
     obs_client.connect_to_server()
-    wait_for(10)
+    wait_for(3)
     obs_client.set_recording_scene()
 
-    print(f"Start Zoom meeting: {task.name} - {task.id}")
+    logger.debug(f"Start Zoom meeting: {task.name} - {task.id}")
     zoom_client.shutdown()
-    wait_for(10)
+    wait_for(3)
     zoom_client.start()
     wait_for(10)
     zoom_client.press_join_meeting_button()
-    wait_for(10)
+    wait_for(3)
     zoom_client.type_meeting_information(task.room.room_id, task.username)
-    wait_for(10)
+    
     while True:
         zoom_client.reset_mouse_position()
         if zoom_client.wait_for_enter_password_window():
             break
-        time.sleep(10)
+        wait_for(10)
         zoom_client.cancel_window()
+        wait_for(10)
         zoom_client.press_join_meeting_button()
+        wait_for(10)
         zoom_client.type_meeting_information(task.room.room_id, task.username)
-    wait_for(10)
+
+    wait_for(3)
     zoom_client.type_meeting_password(task.room.password)
-    wait_for(5)
-    zoom_client.maximize_window()
     wait_for(10)
+    zoom_client.cancel_no_audio_announcemnet()
+    wait_for(3)
+    zoom_client.maximize_window()
+    wait_for(5)
     zoom_client.press_layout_button_and_select_layout(task.room.layout)
     wait_for(10)
     zoom_client.open_chat_room()
-    wait_for(5)
+    wait_for(3)
     zoom_client.move_chat_room_to_left_button()
-
+    wait_for(3)
     obs_client.start_record()
 
     wm.stop()
     del wm
 
 def start_webex_meeting(task: Task):
-    wm = WatermarkApp("Webex 錄影任務即將開始，請勿觸碰電腦。")
+    wm = WatermarkApp("錄影任務即將開始，請勿觸碰電腦。")
     wm.start()
-
     wait_for(10)
+
+    minimize_all_windows()
+
+    obs_client.shutdown()
+    wait_for(3)
     obs_client.start()
     wait_for(10)
     obs_client.connect_to_server()
-    wait_for(10)
+    wait_for(3)
     obs_client.set_recording_scene()
 
-    print(f"Start Webex meeting: {task.name} - {task.id}")
+    minimize_all_windows()
+
+    logger.debug(f"Start Webex meeting: {task.name} - {task.id}")
     webex_client.shutdown()
-    wait_for(10)
+    wait_for(3)
     webex_client.start()
     wait_for(10)
     webex_client.press_join_meeting_button()
-    wait_for(10)
+    wait_for(3)
     webex_client.type_meeting_information(task.room.room_id)
-    wait_for(10)
+    wait_for(1)
+    webex_client.cancel_no_audio_announcemnet()
+
     while True:
         if webex_client.wait_for_ready_enter_window():
             break
-        time.sleep(10)
+        wait_for(10)
         webex_client.cancel_window()
+        wait_for(10)
         webex_client.press_join_meeting_button()
+        wait_for(10)
         webex_client.type_meeting_information(task.room.room_id)
+        time.sleep(1)
+        webex_client.cancel_no_audio_announcemnet()
+
+
     # wait_for(10)
     # webex_client.type_meeting_password(task.room.password)
     # webex client does not need password
-    wait_for(10)
+
+    wait_for(3)
     webex_client.enter_meeting()
+    wait_for(1)
+    webex_client.cancel_no_audio_announcemnet()
     wait_for(10)
     webex_client.maximize_window()
-    wait_for(10)
+    wait_for(3)
     webex_client.wait_for_enter_meeting()
-    wait_for(10)
+    wait_for(3)
     webex_client.press_layout_button_and_select_layout(task.room.layout)
     wait_for(10)
     webex_client.open_chat_room()
-
+    wait_for(3)
     obs_client.start_record()
 
     wm.stop()
     del wm
 
 def stop_zoom_meeting():
-    obs_client.connect_to_server()
     obs_client.stop_record()
 
 
@@ -255,15 +286,14 @@ def stop_zoom_meeting():
     zoom_client.shutdown()
 
 def stop_webex_meeting():
-    obs_client.connect_to_server()
     obs_client.stop_record()
-
+    
     webex_client.stop()
     wait_for(10)
     webex_client.shutdown()
 
 def start_recording(task: Task):
-    print(f"Start recording task: {task.name} - {task.id} ...")
+    logger.debug(f"Start recording task: {task.name} - {task.id} ...")
 
     with Session(engine) as db:
         db_task = db_get_task(db, task.id)
@@ -276,10 +306,10 @@ def start_recording(task: Task):
     elif task.room.room_type == MeetingRoomType.ZOOM:
         start_zoom_meeting(task)
 
-    print(f"Recording task: {task.name} - {task.id} start.")
+    logger.debug(f"Recording task: {task.name} - {task.id} start.")
 
 def stop_recording(task: Task):
-    print(f"Stop recording task: {task.name} - {task.id} ...")
+    logger.debug(f"Stop recording task: {task.name} - {task.id} ...")
 
     if task.room.room_type == MeetingRoomType.WEBEX:
         stop_webex_meeting()
@@ -292,4 +322,4 @@ def stop_recording(task: Task):
         db.commit()
         db.refresh(db_task)
 
-    print(f"Recording task: {task.name} - {task.id} stop.")
+    logger.debug(f"Recording task: {task.name} - {task.id} stop.")

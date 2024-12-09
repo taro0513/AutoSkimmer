@@ -12,17 +12,20 @@ from service import create_task, get_task, get_all_task, delete_task
 from model import TaskStatusType
 
 from client import obs_client
+from custom_logger import logger
 
 app = FastAPI()
 
 
 @app.on_event("startup")
 def init_scheduler():
+    logger.info("Start scheduler")
     scheduler.start()
 
 
 @app.on_event("shutdown")
 def shutdown_scheduler():
+    logger.info("Stop scheduler")
     scheduler.shutdown()
 
 

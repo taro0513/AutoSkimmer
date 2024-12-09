@@ -6,6 +6,8 @@ import obsws_python
 from obsws_python import ReqClient
 import pyautogui
 
+from custom_logger import logger
+
 
 class OBSClient:
     OBS_KEY_WORD = "OBS Studio (64bit)"
@@ -25,9 +27,13 @@ class OBSClient:
         if latency > 0:
             time.sleep(latency)
 
+        time.sleep(1)
         pyautogui.press("esc")
+        time.sleep(1)
         pyautogui.press("win")
+        time.sleep(1)
         pyautogui.typewrite(self.OBS_KEY_WORD)
+        time.sleep(1)
         pyautogui.press("enter")
 
     def connect_to_server(self):
@@ -36,7 +42,7 @@ class OBSClient:
                 host=self.host, port=self.port
             )
         except:
-            print("Failed to connect to OBS server")
+            logger.debug("Failed to connect to OBS server")
 
     def set_scene(self, scene_name: str):
         self.client.set_current_program_scene(scene_name)
@@ -48,13 +54,13 @@ class OBSClient:
         try:
             self.client.create_scene(scene_name)
         except Exception as e:
-            print(f"Failed to create scene: {scene_name}")
+            logger.debug(f"Failed to create scene: {scene_name}")
 
     def create_scene_source(self, scene_name: str, source_name: str, enable: bool = True):
         try:
             self.client.create_scene_item(scene_name, source_name, enable)
         except Exception as e:
-            print(f"Failed to create scene item: {source_name}")
+            logger.debug(f"Failed to create scene item: {source_name}")
 
     def start_record(self):
         self.client.start_record()
@@ -66,7 +72,7 @@ class OBSClient:
         for proc in psutil.process_iter(['pid', 'name']):
             try:
                 if proc.info['name'] == self.PROCESS_NAME:
-                    print(f"Terminating process: {proc.info['name']} (PID: {proc.info['pid']})")
+                    logger.debug(f"Terminating process: {proc.info['name']} (PID: {proc.info['pid']})")
                     proc.terminate()
                     proc.wait()
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
@@ -74,10 +80,15 @@ class OBSClient:
 
 if __name__ == "__main__":
     obs_client = OBSClient()
+    obs_client.shutdown()
+    time.sleep(3)
+    obs_client.start()
+    time.sleep(10)
     obs_client.connect_to_server()
-    obs_client.connect_to_server()
+    time.sleep(3)
     # obs_client.create_scene("AutoSkimmer")
     obs_client.set_scene("AutoSkimmer")
+    time.sleep(3)
     obs_client.start_record()
     time.sleep(5)
     obs_client.stop_record()

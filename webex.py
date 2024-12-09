@@ -9,6 +9,7 @@ from enum import StrEnum
 import psutil
 
 from model import MeetingRoomLayoutMode
+from custom_logger import logger
 
 pyautogui.FAILSAFE = False
 
@@ -34,12 +35,13 @@ class WebexClient:
     SETTING_PATH = r"image/webex/setting.png"
     CHAT_ROOM_PATH = r"image/webex/chat_room.png"
     CHAT_ROOM_JUMPER_PATH = r"image/webex/chat_room_jumper.png"
+    ENTER_MEETING_BUTTON_PATH = r"image/webex/enter_meeting_button.png"
     PROCESS_NAME = "CiscoCollabHost.exe"
     HIDE_NO_VIDEO_PEOPLE_BUTTON_X_OFFSET = 130
 
 
     def __init__(self):
-        self.exe_path = Path(r"C:\Users\hank9\AppData\Local\Programs\Cisco Spark\CiscoCollabHost.exe")
+        self.exe_path = Path(r"C:\Users\linlab\AppData\Local\CiscoSparkLauncher\CiscoCollabHost.exe")
 
     def start(self, latency: int = 0):
         if not self.exe_path.exists():
@@ -48,9 +50,13 @@ class WebexClient:
         if latency > 0:
             time.sleep(latency)
 
+        time.sleep(1)
         pyautogui.press("esc")
+        time.sleep(1)
         pyautogui.press("win")
+        time.sleep(1)
         pyautogui.typewrite(self.WEBEX_KEY_WORD)
+        time.sleep(1)
         pyautogui.press("enter")
 
     def stop(self):
@@ -60,14 +66,14 @@ class WebexClient:
 
     def press_join_meeting_button(self):
         join_meeting_button_location = self._locate_join_meeting_button()
-        pyautogui.click(join_meeting_button_location)
+        pyautogui.click(join_meeting_button_location, interval=2)
 
     def _locate_join_meeting_button(self, confidence: float = 0.8) -> Point:
         return self._locate_button(self.JOIN_MEETING_BUTTON_PATH, "join meeting", confidence, 5, 0.1)
 
     def _locate_button(self, button_path: str, button_name: str, confidence: float = 0.8, retry_times: int = 5, reduce_confidence: float = 0.1,
                        mouse_reset: bool = False, raise_error: bool = True) -> Point:
-        print(f"Locating {button_name} button...")
+        logger.debug(f"Locating {button_name} button...")
         button = cv2.imread(button_path)
         button_location = None
 
@@ -80,13 +86,13 @@ class WebexClient:
                 button_location = pyautogui.locateCenterOnScreen(
                     button, confidence=confidence
                 )
-                print(f"{button_name} button found")
-                print(button_location)
+                logger.debug(f"{button_name} button found")
+                logger.debug(button_location)
                 break
             except:
-                print(f"{button_name} button not found")
-                print("Trying again...")
-                print("Reducing confidence..., confidence: ", confidence)
+                logger.debug(f"{button_name} button not found")
+                logger.debug("Trying again...")
+                logger.debug("Reducing confidence..., confidence: ", confidence)
                 button_location = None
                 time.sleep(3)
                 confidence -= reduce_confidence
@@ -95,7 +101,7 @@ class WebexClient:
             if raise_error:
                 raise Exception(f"{button_name} button not found")
             else:
-                print(f"{button_name} button not found")
+                logger.debug(f"{button_name} button not found")
                 return None
 
         return button_location
@@ -105,10 +111,17 @@ class WebexClient:
         pyperclip.copy(meeting_id)
         with pyautogui.hold('ctrl'):
             pyautogui.press('v')
+        time.sleep(1)
         pyautogui.press("enter")
 
     def enter_meeting(self):
         pyautogui.press("enter")
+        # enter_meeting_button = self._locate_button(self.ENTER_MEETING_BUTTON_PATH, "enter_meeting_button", 0.75, 5, 0.02, raise_error=False)
+        # if enter_meeting_button:
+        #     pyautogui.click(enter_meeting_button, interval=0.5)
+        # else:
+        #     logger.debug("enter_meeting_button not found")
+
 
     def maximize_window(self):
         with pyautogui.hold('alt'):
@@ -120,7 +133,7 @@ class WebexClient:
         while True:
             try:
                 pyautogui.locateCenterOnScreen(waiting_context, confidence=0.8)
-                print("Waiting for entering meeting...")
+                logger.debug("Waiting for entering meeting...")
                 time.sleep(3)
             except:
                 check_count += 1
@@ -208,7 +221,7 @@ class WebexClient:
         for proc in psutil.process_iter(['pid', 'name']):
             try:
                 if proc.info['name'] == self.PROCESS_NAME:
-                    print(f"Terminating process: {proc.info['name']} (PID: {proc.info['pid']})")
+                    logger.debug(f"Terminating process: {proc.info['name']} (PID: {proc.info['pid']})")
                     proc.terminate()
                     proc.wait()
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
@@ -233,34 +246,52 @@ class WebexClient:
         else:
             self.cancel_window()
 
+    
+    def cancel_no_audio_announcemnet(self):
+        time.sleep(2)
+        pyautogui.press("esc", interval=1)
+
 
 
 if __name__ == "__main__":
-    webex_client = WebexClient()
+    meeting_id = 'https://meet1403.webex.com/meet/pr26425131474'
 
+    webex_client = WebexClient()
     webex_client.shutdown()
+    time.sleep(3)
     webex_client.start()
-    time.sleep(5)
+    time.sleep(10)
     webex_client.press_join_meeting_button()
-    webex_client.type_meeting_information('https://meet1403.webex.com/meet/pr26425131474')
+    time.sleep(3)
+    webex_client.type_meeting_information(meeting_id)
+    time.sleep(1)
+    webex_client.cancel_no_audio_announcemnet()
 
     while True:
         if webex_client.wait_for_ready_enter_window():
             break
         time.sleep(10)
         webex_client.cancel_window()
+        time.sleep(10)
         webex_client.press_join_meeting_button()
-        webex_client.type_meeting_information("https://meet1403.webex.com/meet/pr26425131474")
+        time.sleep(10)
+        webex_client.type_meeting_information(meeting_id)
+        time.sleep(1)
+        webex_client.cancel_no_audio_announcemnet()
 
+    time.sleep(3)
     webex_client.enter_meeting()
-    time.sleep(1)
+    time.sleep(3)
+    webex_client.cancel_no_audio_announcemnet()
+    time.sleep(10)
     webex_client.maximize_window()
+    time.sleep(3)
     webex_client.wait_for_enter_meeting()
-    time.sleep(5)
+    time.sleep(3)
     webex_client.press_layout_button_and_select_layout(MeetingRoomLayoutMode.MODE_A)
-    time.sleep(5)
+    time.sleep(10)
     webex_client.open_chat_room()
 
-    webex_client.stop()
-    time.sleep(5)
-    webex_client.shutdown()
+    # webex_client.stop()
+    # time.sleep(5)
+    # webex_client.shutdown()

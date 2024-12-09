@@ -5,9 +5,11 @@ from PyQt5.QtGui import QFont
 import threading
 import time
 
+from custom_logger import logger
+
 
 class WatermarkApp:
-    def __init__(self, text="电缆自动控制中"):
+    def __init__(self, text="錄影任務即將開始，請勿觸碰電腦"):
         self.text = text
         self.app = None
         self.label = None
@@ -40,14 +42,14 @@ class WatermarkApp:
             self.app.quit()  # Quit the application
         if self.thread:
             self.thread.join()  # Ensure the thread stops
-        print("Watermark application stopped.")
+        logger.debug("Watermark application stopped.")
 
 
 # Example usage
 if __name__ == "__main__":
     wm = WatermarkApp("錄影任務即將開始，請勿觸碰電腦")
     wm.start()  # Start the watermark app
-    print("Watermark started. It will stop in 10 seconds.")
+    logger.debug("Watermark started. It will stop in 10 seconds.")
 
     # Let the watermark run for 10 seconds
     time.sleep(10)

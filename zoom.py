@@ -9,6 +9,7 @@ from enum import StrEnum
 import psutil
 
 from model import MeetingRoomLayoutMode
+from custom_logger import logger
 
 pyautogui.FAILSAFE = False
 
@@ -34,7 +35,7 @@ class ZoomClient:
     PROCESS_NAME = "Zoom.exe"
 
     def __init__(self):
-        self.exe_path = Path(r"C:\Program Files\Zoom\bin\Zoom.exe")
+        self.exe_path = Path(r"C:\Users\linlab\AppData\Roaming\Zoom\bin\Zoom.exe") 
     def start(self, latency: int = 0):
         if not self.exe_path.exists():
             raise FileNotFoundError(f"Zoom exe not found at {self.exe_path}")
@@ -42,30 +43,36 @@ class ZoomClient:
         if latency > 0:
             time.sleep(latency)
 
+        time.sleep(1)
         pyautogui.press("esc")
+        time.sleep(1)
         pyautogui.press("win")
+        time.sleep(1)
         pyautogui.typewrite(self.ZOOM_KEY_WORD)
+        time.sleep(1)
         pyautogui.press("enter")
 
     def stop(self):
         with pyautogui.hold('alt'):
             pyautogui.press('q')
+        time.sleep(1)
         pyautogui.press("enter")
 
     def press_join_meeting_button(self):
         join_meeting_button_location = self._locate_join_meeting_button()
-        pyautogui.click(join_meeting_button_location)
+        pyautogui.click(join_meeting_button_location, interval=2)
 
     def _locate_join_meeting_button(self, confidence: float = 0.8) -> Point:
         return self._locate_button(self.JOIN_MEETING_BUTTON_PATH, "join meeting", confidence, 5, 0.1)
 
     def type_meeting_information(self, meeting_id: str, username: str):
-        time.sleep(3)
+        time.sleep(1)
         pyperclip.copy(str(meeting_id))
         with pyautogui.hold('ctrl'):
             pyautogui.press('v')
         time.sleep(1)
         pyautogui.press("tab")
+        time.sleep(1)
         pyautogui.press("tab")
         time.sleep(1)
         with pyautogui.hold('ctrl'):
@@ -73,8 +80,10 @@ class ZoomClient:
         pyautogui.press("backspace")
         time.sleep(1)
         pyperclip.copy(username)
+        time.sleep(1)
         with pyautogui.hold('ctrl'):
             pyautogui.press('v')
+        time.sleep(1)
         pyautogui.press("enter")
 
 
@@ -84,18 +93,18 @@ class ZoomClient:
         error_room_id = cv2.imread(self.ERROR_ROOM_ID_PATH)
         _check_count = 0
         for i in range(retry_times):
-            print("Checking room id error... ", i)
+            logger.debug("Checking room id error... ", i)
             if _check_count >= check_count:
                 return True
             try:
                 error_room_id_location = pyautogui.locateCenterOnScreen(
                     error_room_id, confidence=0.8
                 )
-                print("Error room id found")
+                logger.debug("Error room id found")
             except:
                 error_room_id_location = None
                 _check_count += 1
-                print("Error room id not found")
+                logger.debug("Error room id not found")
             time.sleep(retry_interval)
         return False
 
@@ -104,10 +113,11 @@ class ZoomClient:
         pyperclip.copy(meeting_password)
         with pyautogui.hold('ctrl'):
             pyautogui.press('v')
+        time.sleep(1)
         pyautogui.press("enter")
 
     def maximize_window(self):
-        pyautogui.click(pyautogui.position(), clicks=1, interval=2)
+        # pyautogui.click(pyautogui.position(), clicks=1, interval=2)
         with pyautogui.hold('alt'):
             pyautogui.press('f')
 
@@ -118,8 +128,8 @@ class ZoomClient:
 
     def locate_layout_button_and_click(self):
         layout_button_location = self._locate_layout_button()
-        pyautogui.moveTo(layout_button_location)  # 2510, 28
-        pyautogui.click(layout_button_location)
+        pyautogui.moveTo(layout_button_location, duration=1)  # 2510, 28
+        pyautogui.click(layout_button_location, interval=1)
 
     def _select_layout(self, layout: str):
         if layout == MeetingRoomLayoutMode.MODE_A:
@@ -207,7 +217,7 @@ class ZoomClient:
 
     def _locate_button(self, button_path: str, button_name: str, confidence: float = 0.8, retry_times: int = 5, reduce_confidence: float = 0.1,
                        mouse_reset: bool = False, raise_error: bool = True) -> Point:
-        print(f"Locating {button_name} button...")
+        logger.debug(f"Locating {button_name} button...")
         button = cv2.imread(button_path)
         button_location = None
 
@@ -220,13 +230,13 @@ class ZoomClient:
                 button_location = pyautogui.locateCenterOnScreen(
                     button, confidence=confidence
                 )
-                print(f"{button_name} button found")
-                print(button_location)
+                logger.debug(f"{button_name} button found")
+                logger.debug(button_location)
                 break
             except:
-                print(f"{button_name} button not found")
-                print("Trying again...")
-                print("Reducing confidence..., confidence: ", confidence)
+                logger.debug(f"{button_name} button not found")
+                logger.debug("Trying again...")
+                logger.debug("Reducing confidence..., confidence: ", confidence)
                 button_location = None
                 time.sleep(3)
                 confidence -= reduce_confidence
@@ -235,7 +245,7 @@ class ZoomClient:
             if raise_error:
                 raise Exception(f"{button_name} button not found")
             else:
-                print(f"{button_name} button not found")
+                logger.debug(f"{button_name} button not found")
                 return None
 
         return button_location
@@ -244,7 +254,7 @@ class ZoomClient:
         for proc in psutil.process_iter(['pid', 'name']):
             try:
                 if proc.info['name'] == self.PROCESS_NAME:
-                    print(f"Terminating process: {proc.info['name']} (PID: {proc.info['pid']})")
+                    logger.debug(f"Terminating process: {proc.info['name']} (PID: {proc.info['pid']})")
                     proc.terminate()
                     proc.wait()
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
@@ -254,7 +264,7 @@ class ZoomClient:
         pyautogui.press("esc")
 
     def reset_mouse_position(self):
-        pyautogui.moveTo(0, 0, duration=0.2)
+        pyautogui.moveTo(0, 0, duration=1)
 
     def wait_for_enter_password_window(self):
         return self._locate_button(self.ENTER_PASSWORD_WINDOW_PATH, "enter password window", 0.8, 5, 0.05, raise_error=False)
@@ -268,35 +278,48 @@ class ZoomClient:
             with pyautogui.hold('shift'):
                 pyautogui.press('h')
         chat_room_position = self._locate_button(self.CHAT_ROOM_PATH, "chat room", 0.8, 5, 0.05, raise_error=False)
-        pyautogui.moveTo(chat_room_position)
-        pyautogui.dragTo(move_to, chat_room_position.y, duration=0.5)
+        pyautogui.moveTo(chat_room_position, duration=1)
+        pyautogui.dragTo(move_to, chat_room_position.y, duration=1)
+
+    def cancel_no_audio_announcemnet(self):
+        pyautogui.press("esc")
+        time.sleep(2)
+        pyautogui.press("esc")
 
 if __name__ == '__main__':
+    meeting_id = 'https://us05web.zoom.us/j/83625567759?pwd=XQDtXxpJYbaksexUa27wWzp2btkpi9.1'
+    username = 'Patrickuuuu'
+    password = '1TgYEy'
+
     zoom = ZoomClient()
     zoom.shutdown()
-    time.sleep(5)
+    time.sleep(3)
     zoom.start()
-    time.sleep(5)
+    time.sleep(10)
     zoom.press_join_meeting_button()
-
-    zoom.type_meeting_information("https://zoom.us/j/94345039088?pwd=deUSpmasIx9LVcze2gz5moVn7SEzlx.1", "username")
+    time.sleep(3)
+    zoom.type_meeting_information(meeting_id, username)
 
     while True:
         zoom.reset_mouse_position()
         if zoom.wait_for_enter_password_window():
             break
-        time.sleep(3)
+        time.sleep(10)
         zoom.cancel_window()
+        time.sleep(10)
         zoom.press_join_meeting_button()
-        zoom.type_meeting_information("https://zoom.us/j/94345039088?pwd=deUSpmasIx9LVcze2gz5moVn7SEzlx.1", "username")
+        time.sleep(10)
+        zoom.type_meeting_information(meeting_id, username)
 
-    zoom.type_meeting_password("vSU0h4")
-    time.sleep(5)
-    zoom.maximize_window()
-    zoom.press_layout_button_and_select_layout(ZoomLayoutEnum.GALLERY)
-    time.sleep(2)
-    zoom.open_chat_room()
-    zoom.move_chat_room_to_left_button()
-
+    time.sleep(3)
+    zoom.type_meeting_password(password)
     time.sleep(10)
-    zoom.stop()
+    zoom.cancel_no_audio_announcemnet()
+    time.sleep(3)
+    zoom.maximize_window()
+    time.sleep(5)
+    zoom.press_layout_button_and_select_layout(MeetingRoomLayoutMode.MODE_A)
+    time.sleep(10)
+    zoom.open_chat_room()
+    time.sleep(3)
+    zoom.move_chat_room_to_left_button()

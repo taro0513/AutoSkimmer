@@ -9,8 +9,8 @@ engine = create_engine(
     config.TASK_DB, connect_args={"check_same_thread": False}
 )
 
-Base.metadata.drop_all(bind=engine)
-Base.metadata.create_all(bind=engine)
+# Base.metadata.drop_all(bind=engine)
+# Base.metadata.create_all(bind=engine)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
